@@ -3,365 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>敦煌历代时空 GIS</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <title>敦煌历代时空 GIS 演变系统 (全真数据版)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; }
+        body { margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        @media (min-width: 768px) { body { flex-direction: row; } }
         
-        .container {
-            display: flex;
-            height: 100vh;
-            flex-direction: column;
-        }
+        #sidebar { background: #ffffff; box-shadow: 2px 0 15px rgba(0,0,0,0.15); z-index: 1000; display: flex; flex-direction: column; }
+        #map { flex-grow: 1; height: 100%; z-index: 1; background: #1a1a1a; }
         
-        @media (min-width: 768px) {
-            .container { flex-direction: row; }
-        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 0.5rem; font-size: 0.8rem; color: #4b5563; }
+        .color-box { width: 12px; height: 12px; margin-right: 8px; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 2px rgba(0,0,0,0.5); }
+        .leaflet-control-attribution { display: none !important; }
+
+        .leaflet-popup-content-wrapper { padding: 0; border-radius: 0.5rem; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
+        .leaflet-popup-content { margin: 0; width: 320px !important; }
+        .leaflet-popup-tip-container { display: none; }
         
-        .sidebar {
-            background: white;
-            padding: 20px;
-            overflow-y: auto;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            height: 40vh;
-            width: 100%;
-            z-index: 1000;
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 2px; }
+
+        .era-btn.active { background-color: #2563eb; color: white; border-color: #2563eb; }
         
-        @media (min-width: 768px) {
-            .sidebar {
-                height: 100vh;
-                width: 350px;
-                flex-shrink: 0;
-            }
-        }
-        
-        .map-container {
-            flex: 1;
-            height: 60vh;
-            width: 100%;
-            background: #e5e7eb;
-        }
-        
-        @media (min-width: 768px) {
-            .map-container { height: 100vh; }
-        }
-        
-        h1 { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
-        .subtitle { font-size: 12px; color: #999; margin-bottom: 15px; }
-        
-        .era-section {
-            background: #f9f9f9;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            padding: 12px;
-            margin-bottom: 15px;
-        }
-        
-        .era-title { font-size: 12px; font-weight: bold; margin-bottom: 10px; }
-        
-        .button-group {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        
-        button {
-            padding: 6px;
-            font-size: 11px;
-            border: 1px solid #ccc;
-            background: white;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-        
-        button:hover { background: #f0f0f0; }
-        
-        button.active {
-            background: #2563eb;
-            color: white;
-            border-color: #2563eb;
-        }
-        
-        .description {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 4px;
-            padding: 8px;
-            font-size: 12px;
-            color: #555;
-            line-height: 1.5;
-        }
-        
-        .legend {
-            margin-top: 15px;
-        }
-        
-        .legend-title {
-            font-size: 12px;
-            font-weight: bold;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-        }
-        
-        .legend-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            font-size: 11px;
-        }
-        
-        .legend-box {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
-            border: 1px solid white;
-            box-shadow: 0 0 2px rgba(0,0,0,0.5);
-        }
-        
-        #map { width: 100%; height: 100%; }
+        .text-shadow { text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black; }
+        .leaflet-tooltip { background: transparent; border: none; box-shadow: none; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="sidebar">
-        <h1>敦煌历代时空 GIS</h1>
-        <p class="subtitle">地形图 + 完整数据版</p>
-        
-        <div class="era-section">
-            <div class="era-title">时间轴 (Time Axis)</div>
-            <div class="button-group">
-                <button class="era-btn active" data-era="han">汉代</button>
-                <button class="era-btn" data-era="tang">唐代</button>
-                <button class="era-btn" data-era="mingqing">明清</button>
-                <button class="era-btn" data-era="modern1">1970s</button>
-                <button class="era-btn" data-era="modern2">当代</button>
+    <div id="sidebar" class="w-full md:w-80 p-5 shrink-0 h-2/5 md:h-full overflow-y-auto custom-scrollbar">
+        <h1 class="text-xl font-bold text-gray-800 mb-1">敦煌历代时空 GIS</h1>
+        <p class="text-xs text-gray-500 mb-4">基于真实考古与地理数据</p>
+
+        <!-- 时代选项 -->
+        <div class="mb-5 bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <h2 class="text-sm font-bold text-gray-700 mb-2">时间轴 (Time Axis)</h2>
+            <div class="grid grid-cols-3 gap-2">
+                <button class="era-btn active text-xs py-1.5 px-2 border border-gray-300 rounded bg-white text-gray-700 transition" data-era="han">汉代</button>
+                <button class="era-btn text-xs py-1.5 px-2 border border-gray-300 rounded bg-white text-gray-700 transition" data-era="tang">唐代</button>
+                <button class="era-btn text-xs py-1.5 px-2 border border-gray-300 rounded bg-white text-gray-700 transition" data-era="mingqing">明清</button>
+                <button class="era-btn text-xs py-1.5 px-2 border border-gray-300 rounded bg-white text-gray-700 transition" data-era="modern1">1970s</button>
+                <button class="era-btn text-xs py-1.5 px-2 border border-gray-300 rounded bg-white text-gray-700 transition" data-era="modern2">当代</button>
             </div>
-            <div class="description" id="description"></div>
+            <div id="eraDesc" class="text-xs text-gray-600 mt-3 leading-relaxed bg-white p-2 rounded border border-gray-100">
+                <!-- 动态描述 -->
+            </div>
         </div>
-        
-        <div class="legend">
-            <div class="legend-title">节点类型图例</div>
-            <div class="legend-item">
-                <div class="legend-box" style="background: #dc2626;"></div>
-                郡县治所 / 核心城市
-            </div>
-            <div class="legend-item">
-                <div class="legend-box" style="background: #f97316;"></div>
-                军事关隘 / 烽燧驿站
-            </div>
-            <div class="legend-item">
-                <div class="legend-box" style="background: #9333ea;"></div>
-                宗教石窟 / 文化遗址
-            </div>
-            <div class="legend-item">
-                <div class="legend-box" style="background: #3b82f6;"></div>
-                水利工程 / 基础设施
-            </div>
-            <div class="legend-item">
-                <div class="legend-box" style="background: #10b981;"></div>
-                农业乡镇 / 屯田区
+
+        <div class="flex-grow">
+            <h2 class="text-sm font-bold text-gray-700 mb-3 border-b pb-1">节点类型图例</h2>
+            <div class="grid grid-cols-1 gap-1">
+                <div class="legend-item"><div class="color-box bg-red-600"></div> 行政中心 / 核心城市</div>
+                <div class="legend-item"><div class="color-box bg-orange-500"></div> 军事关隘 / 仓储驿站</div>
+                <div class="legend-item"><div class="color-box bg-purple-600"></div> 宗教石窟 / 文化遗址</div>
+                <div class="legend-item"><div class="color-box bg-blue-500"></div> 水利工程 / 基础设施</div>
+                <div class="legend-item"><div class="color-box bg-emerald-500"></div> 农业乡镇 / 屯田区</div>
+                <div class="legend-item mt-2"><div class="w-4 h-1 bg-blue-400 mr-2"></div> 疏勒河/党河 (动态水量)</div>
+                <div class="legend-item"><div class="w-4 h-3 bg-green-500 opacity-30 mr-2 border border-green-600"></div> 绿洲演变范围</div>
             </div>
         </div>
     </div>
 
-    <div class="map-container">
-        <div id="map"></div>
-    </div>
-</div>
+    <div id="map"></div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('页面加载完成，开始初始化地图...');
-    
-    // 检查 Leaflet 是否加载
-    if (typeof L === 'undefined') {
-        alert('地图库加载失败，请刷新页面');
-        return;
-    }
-    
-    // 初始化地图
-    var map = L.map('map').setView([40.10, 94.65], 9);
-    console.log('地图已初始化');
-    
-    // 添加瓷砖层
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '© OpenStreetMap'
-    }).addTo(map);
-    console.log('瓷砖层已加载');
-    
-    // 要素组
-    var markersLayer = L.featureGroup().addTo(map);
-    var environmentLayer = L.featureGroup().addTo(map);
-    
-    // 颜色配置
-    var typeColors = {
-        'admin': '#dc2626',
-        'military': '#f97316',
-        'culture': '#9333ea',
-        'infra': '#3b82f6',
-        'agri': '#10b981'
-    };
-    
-    // 节点数据
-    var allSites = [
-        { eras: ['han'], type: 'admin', name: '敦煌郡城', coords: [40.140, 94.660], tag: '汉代四郡', desc: '汉武帝元鼎六年设立，扼守河西走廊西端。', details: { '建置': '公元前111年', '人口': '约3.8万' } },
-        { eras: ['han'], type: 'military', name: '玉门关', coords: [40.353, 93.866], tag: '北道雄关', desc: '丝绸之路北道必经关隘，防范匈奴。', details: { '位置': '疏勒河南岸', '遗址': '现存夯土方城' } },
-        { eras: ['han'], type: 'military', name: '阳关', coords: [39.860, 94.060], tag: '南道雄关', desc: '与玉门关南北呼应的重要门户。', details: { '水源': '渥洼池', '现状': '仅存烽燧' } },
-        { eras: ['han'], type: 'military', name: '悬泉置', coords: [40.250, 95.300], tag: '国家级驿站', desc: '汉代丝绸之路上重要的邮驿接待机构。', details: { '出土': '悬泉汉简2万余枚' } },
-        { eras: ['han'], type: 'agri', name: '效谷县', coords: [40.200, 94.800], tag: '农业屯田', desc: '汉代设立的农业县。', details: { '职能': '军屯与民屯结合' } },
-        { eras: ['han'], type: 'agri', name: '龙勒县', coords: [39.900, 94.200], tag: '南部防线', desc: '阳关所在的县级建制。', details: { '地理': '靠近阿尔金山脉' } },
-        
-        { eras: ['tang'], type: 'admin', name: '沙州城', coords: [40.140, 94.660], tag: '唐代重镇', desc: '丝路国际大都市，佛教极度兴盛。', details: { '文化': '多民族杂居' } },
-        { eras: ['tang', 'mingqing', 'modern1', 'modern2'], type: 'culture', name: '莫高窟', coords: [40.038, 94.808], tag: '世界文化遗产', desc: '前秦始建，唐代开凿极盛。', details: { '现存': '735个洞窟', '壁画': '4.5万㎡' } },
-        { eras: ['tang'], type: 'agri', name: '寿昌县', coords: [39.850, 94.050], tag: '唐代县治', desc: '原汉代龙勒县地。', details: { '水源': '依赖南湖泉水' } },
-        { eras: ['tang'], type: 'military', name: '唐玉门关', coords: [40.530, 95.830], tag: '东迁关隘', desc: '唐代向东迁移至瓜州。', details: { '变迁': '汉关废弃' } },
-        { eras: ['tang', 'mingqing', 'modern1', 'modern2'], type: 'culture', name: '榆林窟', coords: [40.060, 95.930], tag: '莫高窟姊妹窟', desc: '开凿于榆林河峡谷。', details: { '位置': '瓜州县境内' } },
-        { eras: ['tang'], type: 'culture', name: '白马塔', coords: [40.130, 94.650], tag: '佛教遗迹', desc: '相传纪念鸠摩罗什的白马。', details: { '始建': '前秦/后凉' } },
-        
-        { eras: ['mingqing'], type: 'admin', name: '沙州卫', coords: [40.140, 94.660], tag: '军政中心', desc: '明初设沙州卫，清代重设。', details: { '人口': '清代大规模移民' } },
-        { eras: ['mingqing'], type: 'military', name: '嘉峪关', coords: [39.900, 96.500], tag: '明代西界', desc: '明代中后期退守嘉峪关。', details: { '战略': '内缩防线' } },
-        { eras: ['mingqing'], type: 'admin', name: '安西州', coords: [40.520, 95.780], tag: '清代枢纽', desc: '清代经营西域的后勤基地。', details: { '俗语': '安西风，敦煌沙' } },
-        
-        { eras: ['modern1'], type: 'admin', name: '敦煌县城', coords: [40.142, 94.662], tag: '县级行政区', desc: '文革后期及改革开放初期。', details: { '经济': '以传统农业为主' } },
-        { eras: ['modern1', 'modern2'], type: 'infra', name: '党河水库', coords: [39.950, 94.620], tag: '生命之源', desc: '1975年建成，改变敦煌用水格局。', details: { '影响': '下游河道断流' } },
-        { eras: ['modern1'], type: 'agri', name: '七里镇', coords: [40.100, 94.550], tag: '工业萌芽', desc: '青海油田的生活基地。', details: { '人口': '大量石油工人迁入' } },
-        { eras: ['modern1'], type: 'agri', name: '南湖公社', coords: [39.860, 94.060], tag: '农业公社', desc: '阳关故址附近的农业垦区。', details: { '特产': '葡萄种植起步' } },
-        
-        { eras: ['modern2'], type: 'admin', name: '敦煌市', coords: [40.142, 94.662], tag: '文旅名城', desc: '1987年撤县设市。', details: { '游客': '年接待超千万' } },
-        { eras: ['modern2'], type: 'infra', name: '数字展示中心', coords: [40.150, 94.800], tag: '文物保护', desc: '通过球幕电影展示。', details: { '理念': '总量控制，分时参观' } },
-        { eras: ['modern2'], type: 'culture', name: '鸣沙山月牙泉', coords: [40.080, 94.660], tag: '自然奇观', desc: '沙泉共生。', details: { '危机': '20世纪末水位急降' } },
-        { eras: ['modern2'], type: 'infra', name: '敦煌机场', coords: [40.160, 94.800], tag: '交通枢纽', desc: '连接国内外的航空港。', details: { '通航': '1982年' } },
-        { eras: ['modern2'], type: 'infra', name: '光电产业园', coords: [40.100, 94.400], tag: '新能源', desc: '百兆瓦级光热电站。', details: { '环保': '零碳排放' } },
-        { eras: ['modern2'], type: 'culture', name: '雅丹地质公园', coords: [40.500, 93.200], tag: '地质奇观', desc: '风蚀地貌典型代表。', details: { '位置': '西北180公里' } },
-        { eras: ['modern2'], type: 'culture', name: '玉门关遗址', coords: [40.353, 93.866], tag: '遗址公园', desc: '遗址保护与观光区。', details: { '保护': '文化公园' } },
-        { eras: ['modern2'], type: 'culture', name: '阳关遗址', coords: [39.860, 94.060], tag: '遗址公园', desc: '重建了仿古城池。', details: { '体验': '办理通关文牒' } }
-    ];
-    
-    // 历代数据
-    var eraData = {
-        'han': {
-            desc: '<b>汉代</b>：气候相对湿润，疏勒河与党河水量丰沛。玉门关与阳关皆在水系附近，绿洲面积达到历史极盛。',
-            river: [[40.48, 95.50], [40.40, 94.50], [40.353, 93.866], [40.25, 93.20]],
-            riverColor: '#3b82f6'
-        },
-        'tang': {
-            desc: '<b>唐代</b>：沙州城高度繁荣。气候逐渐变干，疏勒河下游水系开始变迁退缩。',
-            river: [[40.48, 95.50], [40.40, 94.50], [40.353, 93.866]],
-            riverColor: '#3b82f6'
-        },
-        'mingqing': {
-            desc: '<b>明清</b>：明代闭关导致绿洲荒废。清代重新移民开垦，绿洲部分恢复。',
-            river: [[40.48, 95.50], [40.42, 94.30]],
-            riverColor: '#60a5fa'
-        },
-        'modern1': {
-            desc: '<b>1970s</b>：1975年党河水库建成，保障农业用水但截断地表径流。',
-            river: [[40.48, 95.50]],
-            riverColor: '#93c5fd'
-        },
-        'modern2': {
-            desc: '<b>当代</b>：绿洲依赖地下水与滴灌技术。实施补水工程，月牙泉水位回升。',
-            river: [[40.48, 95.50]],
-            riverColor: '#93c5fd'
-        }
-    };
-    
-    // 更新地图函数
-    function updateMap(eraKey) {
-        console.log('更新地图: ' + eraKey);
-        
-        // 更新描述
-        var description = document.getElementById('description');
-        description.innerHTML = eraData[eraKey].desc;
-        
-        // 清空旧图层
-        markersLayer.clearLayers();
-        environmentLayer.clearLayers();
-        
-        // 添加河流
-        if (eraData[eraKey].river && eraData[eraKey].river.length > 0) {
-            L.polyline(eraData[eraKey].river, {
-                color: eraData[eraKey].riverColor,
-                weight: 3,
-                opacity: 0.7
-            }).addTo(environmentLayer);
-        }
-        
-        // 添加标记点
-        var sites = allSites.filter(function(site) {
-            return site.eras.indexOf(eraKey) !== -1;
-        });
-        
-        console.log('本时代有 ' + sites.length + ' 个节点');
-        
-        sites.forEach(function(site) {
-            var marker = L.circleMarker(site.coords, {
-                radius: 7,
-                fillColor: typeColors[site.type],
-                color: '#fff',
-                weight: 2,
-                fillOpacity: 1
-            });
-            
-            // 构建弹窗内容
-            var detailsHtml = '';
-            for (var key in site.details) {
-                detailsHtml += '<div style="font-size: 11px; margin: 3px 0;"><b>' + key + ':</b> ' + site.details[key] + '</div>';
+    <script>
+        // 初始化地图
+        const map = L.map('map').setView([40.15, 94.65], 9);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 17 }).addTo(map);
+
+        // 动态图层组
+        const markersLayer = L.featureGroup().addTo(map);
+        const environmentLayer = L.featureGroup().addTo(map);
+
+        // 节点颜色映射
+        const typeColors = {
+            'admin': '#dc2626',   // 红: 行政
+            'military': '#f97316',// 橙: 军事
+            'culture': '#9333ea', // 紫: 文化
+            'infra': '#3b82f6',   // 蓝: 设施
+            'agri': '#10b981'     // 绿: 农业
+        };
+
+        // ==========================================
+        // 真实历史与现代节点数据库 (按时代严格划分)
+        // ==========================================
+        const allSites = [
+            // --- 汉代 (Han) ---
+            { eras: ['han'], type: 'admin', name: "敦煌郡城", coords: [40.140, 94.660], tag: "汉代四郡之一", desc: "汉武帝元鼎六年设立，扼守河西走廊西端，是丝绸之路的咽喉与物资集散地。", details: {"建置": "公元前111年", "人口": "约3.8万(汉平帝时)"} },
+            { eras: ['han'], type: 'military', name: "玉门关 (小方盘城)", coords: [40.353, 93.866], tag: "汉代北道雄关", desc: "丝绸之路北道必经关隘，因西域输入玉石取道于此而得名。", details: {"位置": "疏勒河南岸", "遗址现状": "黄土夯筑方形城堡"} },
+            { eras: ['han'], type: 'military', name: "阳关", coords: [39.860, 94.060], tag: "汉代南道雄关", desc: "与玉门关南北呼应。汉代出使西域、通商贸易的重要门户。", details: {"水源": "渥洼池", "遗址现状": "仅存墩墩山烽燧"} },
+            { eras: ['han'], type: 'military', name: "河仓城 (大方盘城)", coords: [40.380, 93.980], tag: "汉代国家级军需仓", desc: "建于疏勒河古道旁的巨大粮仓，负责为玉门关及长城沿线守军提供后勤补给。", details: {"建筑": "长方形夯土建筑", "功能": "储粮、储衣"} },
+            { eras: ['han'], type: 'military', name: "悬泉置", coords: [40.265, 95.320], tag: "汉代皇家驿站", desc: "丝路上极其重要的官方邮驿机构，出土了2.3万枚汉简，记录了大量西域使者往来记录。", details: {"接待规模": "单次最大千余人", "考古": "世界文化遗产"} },
+            { eras: ['han', 'tang'], type: 'agri', name: "寿昌城", coords: [39.830, 94.040], tag: "汉唐屯田重镇", desc: "汉代设立的寿昌县，是阳关后方的核心农业屯田区，唐代依然繁荣。", details: {"水利": "引南山融雪灌溉", "结局": "宋元后因水源枯竭废弃"} },
+
+            // --- 唐代 (Tang) ---
+            { eras: ['tang'], type: 'admin', name: "沙州城", coords: [40.140, 94.660], tag: "唐代河西重镇", desc: "唐代改敦煌为沙州，是丝绸之路上国际化程度极高的商业与文化大都市。", details: {"文化": "佛教极度兴盛", "民族": "汉、粟特、吐蕃杂居"} },
+            { eras: ['tang'], type: 'military', name: "唐玉门关 (双塔堡)", coords: [40.530, 95.830], tag: "唐代东迁关隘", desc: "唐代时，由于疏勒河水系变迁及防御重心改变，玉门关向东迁移至瓜州晋昌县界。", details: {"变迁": "汉关废弃，唐关东移", "位置": "今瓜州双塔水库附近"} },
+            { eras: ['tang', 'mingqing'], type: 'admin', name: "瓜州 (晋昌/安西)", coords: [40.520, 95.780], tag: "唐清区域中心", desc: "唐代瓜州治所，清代为安西州，是河西走廊进入敦煌前的交通枢纽。", details: {"地位": "锁钥重镇", "别称": "世界风库"} },
+            { eras: ['tang', 'mingqing', 'modern1', 'modern2'], type: 'culture', name: "莫高窟", coords: [40.038, 94.808], tag: "世界佛教艺术宝库", desc: "唐代是莫高窟开凿的极盛时期，武则天时期洞窟已达千余个。", details: {"极盛期": "隋唐", "现存": "735个洞窟"} },
+            { eras: ['tang', 'mingqing'], type: 'culture', name: "西千佛洞", coords: [39.975, 94.225], tag: "党河崖壁石窟", desc: "位于党河水冲刷形成的断崖上，开凿时间早于莫高窟，唐代有大量重修。", details: {"地貌": "河谷断崖", "现存": "22个洞窟"} },
+            { eras: ['tang', 'mingqing', 'modern1', 'modern2'], type: 'culture', name: "白马塔", coords: [40.125, 94.650], tag: "佛教历史遗迹", desc: "纪念前秦高僧鸠摩罗什东进时死去的白马。唐代及历代均有修缮。", details: {"始建": "公元384年", "结构": "九层土塔"} },
+
+            // --- 明清 (Ming & Qing) ---
+            { eras: ['mingqing'], type: 'admin', name: "敦煌县城 (清雍正)", coords: [40.140, 94.660], tag: "清代重建城池", desc: "明代中后期敦煌曾被废弃200年。清雍正三年（1725年）重新设立敦煌县，移民屯垦，重建绿洲。", details: {"历史断层": "明代嘉峪关闭关", "复兴": "清代沙州卫复设"} },
+            { eras: ['mingqing'], type: 'military', name: "嘉峪关 (指示方向)", coords: [39.900, 96.500], tag: "明代帝国西界", desc: "明代放弃了敦煌地区，退守嘉峪关。敦煌在明代大部分时期属于关外游牧区。(注: 真实位置更靠东)", details: {"战略": "明代闭关锁国", "影响": "敦煌绿洲严重退化"} },
+            { eras: ['mingqing'], type: 'military', name: "柳沟堡", coords: [40.450, 95.450], tag: "明清古驿站", desc: "清代恢复丝路交通后设立的重要驿站和军事堡垒，连接安西与敦煌。", details: {"功能": "军邮与商贸", "现状": "黄土残垣"} },
+
+            // --- 近代 1970s (Modern 1) ---
+            { eras: ['modern1'], type: 'admin', name: "敦煌县城", coords: [40.142, 94.662], tag: "近代农业县城", desc: "20世纪70年代的敦煌，以传统农业为主，正处于现代水利建设的起步期。", details: {"人口": "约10万", "产业": "纯农业"} },
+            { eras: ['modern1', 'modern2'], type: 'infra', name: "党河水库", coords: [39.950, 94.620], tag: "现代生命之源", desc: "1975年建成的大型水利枢纽。彻底改变了敦煌的用水格局，但也导致党河下游断流。", details: {"建成时间": "1975年", "库容": "4600万立方米"} },
+            { eras: ['modern1', 'modern2'], type: 'infra', name: "青海油田生活基地 (七里镇)", coords: [40.110, 94.550], tag: "工业后勤基地", desc: "70年代起，为开发柴达木盆地石油，在此建立大型后勤生活基地，带动了当地发展。", details: {"性质": "石油城", "人口": "数万石油工人及家属"} },
+            { eras: ['modern1'], type: 'agri', name: "南湖公社 (阳关旧址)", coords: [39.870, 94.070], tag: "人民公社时期", desc: "在古阳关废墟附近建立的农业公社，开始大规模植树造林，防风固沙。", details: {"生态": "三北防护林起点之一"} },
+
+            // --- 当代 2026 (Modern 2) ---
+            { eras: ['modern2'], type: 'admin', name: "敦煌市 (沙州镇)", coords: [40.142, 94.662], tag: "国际文旅名城", desc: "依托莫高窟等世界级文化遗产，转型为高度发达的现代旅游城市。", details: {"定位": "国家历史文化名城", "年游客量": "超千万人次"} },
+            { eras: ['modern2'], type: 'agri', name: "莫高镇", coords: [40.150, 94.720], tag: "现代农业与文旅镇", desc: "位于市区东侧，依托莫高窟发展现代设施农业、葡萄种植与高端民宿。", details: {"特色": "城郊经济", "产业": "文旅融合"} },
+            { eras: ['modern2'], type: 'agri', name: "月牙泉镇", coords: [40.080, 94.660], tag: "景区依托型小镇", desc: "紧邻鸣沙山月牙泉，全镇绝大部分人口从事旅游服务业。", details: {"生态": "月牙泉应急补水工程", "产业": "骆驼骑行、沙漠露营"} },
+            { eras: ['modern2'], type: 'agri', name: "黄渠镇", coords: [40.200, 94.450], tag: "传统农业重镇", desc: "位于党河冲积扇西北部，是敦煌重要的棉花、玉米与瓜果产区。", details: {"灌溉": "党河灌区引水", "特产": "李广杏、蜜瓜"} },
+            { eras: ['modern2'], type: 'agri', name: "转渠口镇", coords: [40.180, 94.680], tag: "城市菜篮子", desc: "敦煌城北的农业镇，大量建设温室大棚，保障市区的蔬菜副食品供应。", details: {"农业模式": "高效节水设施农业"} },
+            { eras: ['modern2'], type: 'agri', name: "阳关镇", coords: [39.870, 94.070], tag: "特色林果镇", desc: "古阳关脚下的现代绿洲，以种植优质葡萄闻名，同时是防沙第一线。", details: {"特产": "阳关葡萄", "生态": "国家级自然保护区"} },
+            { eras: ['modern2'], type: 'infra', name: "敦煌光电产业园", coords: [40.100, 94.400], tag: "新能源基地", desc: "利用戈壁荒漠丰富的太阳能资源，建设的百兆瓦级熔盐塔式光热电站。", details: {"科技": "超级镜子发电站", "环保": "零碳排放"} },
+            { eras: ['modern2'], type: 'infra', name: "敦煌莫高国际机场", coords: [40.160, 94.810], tag: "现代交通枢纽", desc: "西北地区重要的旅游支线机场，连接国内外数十个主要城市。", details: {"通航时间": "1982年", "扩建": "T3航站楼"} }
+        ];
+
+        // 时代环境描述与多边形数据
+        const eraData = {
+            'han': {
+                desc: "<b>汉代 (约公元前111年)</b>：汉武帝设立敦煌郡，修筑长城，列四郡据两关。此时气候相对湿润，疏勒河水量丰沛，绿洲面积达到历史极盛，是丝绸之路最繁华的枢纽。",
+                river: [[40.48, 95.50], [40.45, 94.80], [40.42, 94.30], [40.380, 93.935], [40.353, 93.866], [40.25, 93.20]],
+                riverWeight: 6, riverColor: '#3b82f6',
+                oasis: [[40.45, 93.6], [40.48, 94.2], [40.35, 94.9], [40.1, 95.3], [39.85, 94.9], [39.75, 94.1], [39.85, 93.8], [40.1, 93.6]]
+            },
+            'tang': {
+                desc: "<b>唐代 (约公元700年)</b>：沙州城极度繁荣，莫高窟开凿达到顶峰。由于水系变迁，玉门关向东迁移至瓜州。大型水利工程（如千金渠）保障了绿洲的农业生产。",
+                river: [[40.48, 95.50], [40.45, 94.80], [40.42, 94.30], [40.380, 93.935], [40.353, 93.866]],
+                riverWeight: 5, riverColor: '#3b82f6',
+                oasis: [[40.40, 93.8], [40.42, 94.2], [40.30, 94.8], [40.1, 95.1], [39.85, 94.7], [39.80, 94.1], [39.85, 93.9], [40.1, 93.7]]
+            },
+            'mingqing': {
+                desc: "<b>明清 (约公元1600-1750年)</b>：明代嘉峪关闭关，敦煌一度沦为塞外荒漠，古城废弃，绿洲严重萎缩。直至清雍正年间重设敦煌县，移民屯垦，才逐渐恢复生机。",
+                river: [[40.48, 95.50], [40.45, 94.80], [40.42, 94.30]],
+                riverWeight: 3, riverColor: '#60a5fa',
+                oasis: [[40.25, 94.4], [40.25, 94.7], [40.1, 94.8], [39.95, 94.6], [39.95, 94.3], [40.1, 94.3]]
+            },
+            'modern1': {
+                desc: "<b>近代 (20世纪70年代)</b>：1975年党河水库建成，地表水被全面拦截用于现代农业，解决了旱灾，但也导致疏勒河下游彻底断流，古代湿地化为戈壁。",
+                river: [[40.48, 95.50], [40.45, 94.80]],
+                riverWeight: 2, riverColor: '#93c5fd', dashArray: '5, 5',
+                oasis: [[40.25, 94.4], [40.25, 94.8], [40.05, 94.9], [39.95, 94.7], [39.95, 94.4]]
+            },
+            'modern2': {
+                desc: "<b>当代 (2026年)</b>：现代建制镇确立，绿洲高度依赖地下水与高效节水技术。新能源产业崛起。汉唐关隘已成荒漠中的遗址，敦煌转型为国际文旅名城。",
+                river: [[40.48, 95.50], [40.45, 94.80]],
+                riverWeight: 2, riverColor: '#93c5fd', dashArray: '5, 5',
+                oasis: [[40.26, 94.35], [40.26, 94.85], [40.05, 94.95], [39.92, 94.75], [39.92, 94.35]]
             }
-            
-            var popupContent = '<div style="width: 250px; font-size: 12px;">' +
-                '<div style="background-color: ' + typeColors[site.type] + '; color: white; padding: 8px 10px; margin: -6px -6px 0 -6px;">' +
-                '<div style="font-size: 10px; margin-bottom: 2px;">' + site.tag + '</div>' +
-                '<div style="font-weight: bold; font-size: 13px;">' + site.name + '</div>' +
-                '</div>' +
-                '<div style="padding: 8px 10px;">' +
-                '<p style="margin-bottom: 6px;">' + site.desc + '</p>' +
-                '<div style="background: #f5f5f5; padding: 6px; border-radius: 3px; border: 1px solid #e0e0e0;">' +
-                detailsHtml +
-                '</div>' +
-                '</div>' +
-                '</div>';
-            
-            marker.bindPopup(popupContent);
-            marker.addTo(markersLayer);
-        });
-    }
-    
-    // 按钮事件
-    var buttons = document.querySelectorAll('.era-btn');
-    buttons.forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            // 移除所有 active
-            buttons.forEach(function(b) {
-                b.classList.remove('active');
-            });
-            // 添加 active
-            this.classList.add('active');
-            // 更新地图
-            var era = this.getAttribute('data-era');
-            updateMap(era);
-        });
-    });
-    
-    // 初始化
-    console.log('初始化完成，显示汉代数据');
-    updateMap('han');
-    
-    // 强制刷新地图
-    setTimeout(function() {
-        map.invalidateSize();
-    }, 100);
-});
-</script>
+        };
 
+        // 弹窗生成器
+        function createPopupHtml(site) {
+            let detailsHtml = '';
+            for (const [key, value] of Object.entries(site.details)) {
+                detailsHtml += `
+                    <div class="flex justify-between items-start py-1 border-b border-gray-100 last:border-0">
+                        <span class="font-semibold text-gray-700 text-xs w-2/5 shrink-0">${key}</span> 
+                        <span class="text-gray-600 text-xs text-right">${value}</span>
+                    </div>`;
+            }
+            return `
+                <div class="bg-white flex flex-col">
+                    <div class="text-white px-4 py-3 shrink-0" style="background-color: ${typeColors[site.type]}">
+                        <div class="text-[10px] font-bold uppercase tracking-wider opacity-90 mb-0.5">${site.tag}</div>
+                        <h3 class="text-base font-bold m-0 leading-tight">${site.name}</h3>
+                    </div>
+                    <div class="p-4">
+                        <p class="text-xs text-gray-800 mb-3 leading-relaxed text-justify">${site.desc}</p>
+                        <div class="bg-gray-50 p-2 rounded border border-gray-200">
+                            ${detailsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 更新地图核心逻辑
+        function updateMap(eraKey) {
+            // 1. 更新描述
+            document.getElementById('eraDesc').innerHTML = eraData[eraKey].desc;
+
+            // 2. 清除旧图层
+            markersLayer.clearLayers();
+            environmentLayer.clearLayers();
+
+            // 3. 绘制河流与绿洲
+            const env = eraData[eraKey];
+            
+            // 绿洲多边形
+            L.polygon(env.oasis, { 
+                color: '#22c55e', weight: 1.5, fillColor: '#22c55e', fillOpacity: 0.15, opacity: 0.6 
+            }).addTo(environmentLayer);
+
+            // 河流折线
+            const riverOpts = { color: env.riverColor, weight: env.riverWeight, opacity: 0.8 };
+            if (env.dashArray) riverOpts.dashArray = env.dashArray;
+            L.polyline(env.river, riverOpts).addTo(environmentLayer);
+
+            // 4. 筛选并绘制当前时代的节点
+            const activeSites = allSites.filter(site => site.eras.includes(eraKey));
+            
+            activeSites.forEach(site => {
+                const color = typeColors[site.type];
+                const marker = L.circleMarker(site.coords, { 
+                    radius: 7, 
+                    fillColor: color, 
+                    color: '#ffffff', 
+                    weight: 2,
+                    fillOpacity: 0.9
+                });
+                marker.bindPopup(createPopupHtml(site));
+                marker.addTo(markersLayer);
+                
+                // 添加永久文字标签
+                marker.bindTooltip(site.name, {
+                    permanent: true, 
+                    direction: 'right', 
+                    className: 'text-shadow',
+                    offset: [5, 0]
+                });
+            });
+        }
+
+        // CSS for Text Shadow on Tooltips
+        const style = document.createElement('style');
+        style.innerHTML = `.text-shadow { text-shadow: 1px 1px 2px black, -1px -1px 2px black, 1px -1px 2px black, -1px 1px 2px black; color: white; font-weight: bold; font-size: 11px; } .leaflet-tooltip { background: transparent; border: none; box-shadow: none; }`;
+        document.head.appendChild(style);
+
+        // 绑定按钮事件
+        document.querySelectorAll('.era-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.era-btn').forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
+                e.target.classList.add('active', 'bg-blue-600', 'text-white');
+                updateMap(e.target.getAttribute('data-era'));
+            });
+        });
+
+        // 初始化加载汉代
+        setTimeout(() => {
+            updateMap('han');
+            map.invalidateSize();
+        }, 100);
+
+    </script>
 </body>
 </html>
